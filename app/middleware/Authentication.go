@@ -6,9 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gorilla/context"
-
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/context"
 )
 
 type Exception struct {

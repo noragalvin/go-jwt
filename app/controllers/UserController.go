@@ -50,9 +50,9 @@ func UserLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func UserGet(w http.ResponseWriter, r *http.Request) {
-	var user = models.UserShow()
-	json.NewEncoder(w).Encode(user)
-	// json.NewEncoder(w).Encode(Test{A: "1", B: "2"})
+	var user *models.User = models.NewUser()
+	result := user.UserShow(1)
+	json.NewEncoder(w).Encode(result)
 }
 
 func UserTest(w http.ResponseWriter, r *http.Request) {

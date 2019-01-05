@@ -1,5 +1,9 @@
 package models
 
+import (
+	"log"
+)
+
 type User struct {
 	ID        string `json:"id"`
 	UserName  string `json:"username"`
@@ -8,8 +12,17 @@ type User struct {
 	ExpiredAt string `json:"expied_at`
 }
 
-func UserShow() User {
-	var user = User{ID: "1", UserName: "minhnora98"}
-	// mapstructure.Decode(decoded.(jwt.MapClaims), &user)
+func NewUser() *User {
+	return &(User{})
+}
+
+func (u *User) UserShow(id uint) User {
+	var user User
+	db := OpenDB()
+	db.Where("id = ?", id).First(&user)
 	return user
+}
+
+func (u *User) Test() {
+	log.Println("Hi")
 }
