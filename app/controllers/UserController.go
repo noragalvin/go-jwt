@@ -2,62 +2,105 @@ package controllers
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/gorilla/mux"
+	"github.com/jinzhu/gorm"
+	"github.com/noragalvin/go-server/app/utils/auth"
+
+	"github.com/asaskevich/govalidator"
 	helpers "github.com/noragalvin/go-server/app/helpers"
 	models "github.com/noragalvin/go-server/app/models"
+	view "github.com/noragalvin/go-server/app/utils/view"
 )
-
-const username string = "minhnora98"
-const hashPwd string = "$2a$04$02FxQYX4.ghQ1RDZkbIQNO9JAD1uWs76jx1YoOakvI.7ENqL1XRc2" // "123456"
 
 // type Test struct {
 // 	A string `json:"a"`
 // 	B string `json:"b"`
 // }
 
+// UserRegister signup user
 func UserRegister(w http.ResponseWriter, r *http.Request) {
+	var userReq models.UserNoPwd
+
+	if err := json.NewDecoder(r.Body).Decode(&userReq); err != nil {
+		view.Respond(w, view.Message(false, err.Error()))
+		return
+	}
+
+	//Validate
+	if _, err := govalidator.ValidateStruct(userReq); err != nil {
+		view.Respond(w, view.Message(false, err.Error()))
+		return
+	}
+
+	db := models.OpenDB()
+	var check models.User
+
+	if err := db.Where("email = ?", userReq.Email).Or("username = ?", userReq.Username).First(&check).Error; gorm.IsRecordNotFoundError(err) {
+		view.Respond(w, view.Message(false, err.Error()))
+		return
+	}
+
+	//Create user
+	var user models.User
+	user.Username = userReq.Username
+	user.Email = userReq.Email
+	user.Password = helpers.HashAndSalt(userReq.Password)
+	user.Fullname = userReq.Fullname
+	db.Create(&user)
+	// tokenString, expriredAt := auth.CreateToken(user.ID, user.Email, user.Fullname)
+
+	data := view.Message(true, "success")
+	// data["token"] = tokenString
+	// data["expired"] = expriredAt
+	view.Respond(w, data)
 	return
+
 }
 
+// UserLogin login
 func UserLogin(w http.ResponseWriter, r *http.Request) {
-	var user models.User
-	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&user)
-	if err != nil {
+	var user models.UserNoPwd
+	// Decode request data to user variable
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
 		log.Println(err)
 		return
 	}
-	var check bool = helpers.ComparePassword(hashPwd, "123456")
-	if username != user.UserName && check == false {
+
+	db := models.OpenDB()
+	var userDB models.User
+	// Find exist record in database
+	if err := db.Where("email = ?", user.Email).First(&userDB).Error; gorm.IsRecordNotFoundError(err) {
+		view.Respond(w, view.Message(false, err.Error()))
 		return
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"id":       user.ID,
-		"username": user.UserName,
-		"password": user.Password,
-	})
-	tokenString, error := token.SignedString([]byte("secret"))
-	if error != nil {
-		fmt.Println(error)
+
+	//Compare request password and exist password
+	if checkPwd := helpers.ComparePassword(userDB.Password, user.Password); !checkPwd {
+		view.Respond(w, view.Message(false, "Incorrect password"))
+		return
 	}
-	user.Token = tokenString
 
-	json.NewEncoder(w).Encode(user)
+	tokenString, expiresAt := auth.CreateToken(user.ID, user.Email, user.Fullname)
+
+	data := view.Message(true, "success")
+	data["token"] = tokenString
+	data["expires"] = expiresAt
+	view.Respond(w, data)
+	return
 }
 
+// UserGet Get an user by ID
 func UserGet(w http.ResponseWriter, r *http.Request) {
-	var user *models.User = models.NewUser()
-	result := user.UserShow(1)
-	json.NewEncoder(w).Encode(result)
-}
-
-func UserTest(w http.ResponseWriter, r *http.Request) {
-
-	// var pwd string = helpers.HashPassword("123456")
-	var check bool = helpers.ComparePassword(hashPwd, "123456")
-	log.Println(check)
+	var user models.User
+	var id = mux.Vars(r)["id"]
+	// log.Println(id)
+	db := models.OpenDB()
+	db.Where("id = ?", id).First(&user)
+	// json.NewEncoder(w).Encode(user)
+	data := view.Message(true, "success")
+	data["user"] = user
+	view.Respond(w, data)
 }

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+  </head>
+  <body>
+  <form action="" id="login-form">
+    <input type="text" name="email" value="">
+    <input type="password" name="password" value="">
+    <button type="submit" name="button">Submit</button>
+  </form>
+  </body>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.min.js" charset="utf-8"></script>
+  <script type="text/javascript">
+  $("#login-form").submit(function(e) {
+    e.preventDefault();
+    var data = $(this).serializeArray();
+
+    var postData = {};
+    data.forEach(item => {
+      postData[item.name] = item.value
+    });
+
+    console.log(postData);
+    debugger;
+    axios.post("localhost:8080/api/login", postData)
+    .then(res => {
+      console.log(res);
+    })
+    .catch(err => {
+      console.log(err.response)
+    })
+  })
+  </script>
+</html>

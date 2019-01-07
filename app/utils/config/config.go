@@ -6,27 +6,31 @@ import (
 )
 
 type Config struct {
-	Database Database
+	Domain        string `json:"domain"`
+	SessionSecret string `json:"session_secret"`
+	Port          int    `json:"port"`
+	Database      DatabaseConfig
 }
 
 var config *Config
 
-type Database struct {
-	DBName     string
-	DBHost     string
-	DBPort     string
-	DBUsername string
-	DBPassword string
+type DatabaseConfig struct {
+	Name     string
+	Host     string
+	Port     string
+	Username string
+	Password string
 }
 
-func InitConfig() {
+func init() {
 	data, err := ioutil.ReadFile("config.json")
+	// log.Println(data)
 	if err != nil {
 		panic(err)
 	}
 
 	configuration := &Config{}
-	error := json.Unmarshal(data, configuration)
+	error := json.Unmarshal(data, &configuration)
 
 	if error != nil {
 		panic(error)

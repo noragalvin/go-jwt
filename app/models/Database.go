@@ -2,33 +2,34 @@ package models
 
 import (
 	"fmt"
-	"log"
 
+	_ "github.com/bmizerany/pq"
 	"github.com/jinzhu/gorm"
-	"github.com/noragalvin/go-server/app/utils/config"
+	config "github.com/noragalvin/go-server/app/utils/config"
 )
 
 var db *gorm.DB
 
-func InitDB() {
-	DBName := config.Get().Database.DBName
-	DBHost := config.Get().Database.DBHost
-	DBPort := config.Get().Database.DBPort
-	DBUsername := config.Get().Database.DBUsername
-	DBPassword := config.Get().Database.DBPassword
+func init() {
+	DBName := config.Get().Database.Name
+	DBHost := config.Get().Database.Host
+	DBPort := config.Get().Database.Port
+	DBUsername := config.Get().Database.Username
+	DBPassword := config.Get().Database.Password
+	DBString := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable password=%s", DBHost, DBPort, DBUsername, DBName, DBPassword)
 
-	dbString := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable password=%s", DBHost, DBPort, DBUsername, DBName, DBPassword)
-
-	conn, err := gorm.Open("postgres", dbString)
-	defer conn.Close()
+	conn, err := gorm.Open("postgres", DBString)
+	// defer conn.Close()
 	if err != nil {
-		log.Println(err)
+		panic(err)
 	}
+
 	db = conn
 
-	db.Debug().AutoMigrate(&User{})
+	db.AutoMigrate(&User{})
 }
 
+// OpenDB Connect to database
 func OpenDB() *gorm.DB {
 	return db
 }
