@@ -99,7 +99,6 @@ func UserGet(w http.ResponseWriter, r *http.Request) {
 	// log.Println(id)
 	db := models.OpenDB()
 	db.Where("id = ?", id).First(&user)
-	// json.NewEncoder(w).Encode(user)
 	data := view.Message(true, "success")
 	data["user"] = user
 	view.Respond(w, data)

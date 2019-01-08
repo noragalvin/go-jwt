@@ -1,56 +1,115 @@
-// Copyright 2013 The Gorilla WebSocket Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 package ws
 
 import (
-	"encoding/json"
-	"fmt"
+	"io"
 	"log"
-	"net/http"
 
-	"github.com/gorilla/websocket"
+	"golang.org/x/net/websocket"
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-}
+const (
+	chanBufferSize = 100
+)
 
-type Data struct {
-	Sender Sender
-}
+var (
+	clientID = 0
+)
 
-type Sender struct {
+// Message ...
+type Message struct {
 	Name    string `json:"name"`
 	Message string `json:"message"`
+	UserID  int    `json:"user_id"`
 }
 
-// ServeWs handles websocket requests from the peer.
-func ServeWs(w http.ResponseWriter, r *http.Request) {
-	conn, _ := upgrader.Upgrade(w, r, nil) // error ignored for sake of simplicity
+// func (self *Message) String() string {
+// 	return "> " + self.Body
+// }
 
-	for {
-		// Read message from browser
-		msgType, msg, err := conn.ReadMessage()
-		if err != nil {
+// Client ...
+type Client struct {
+	id            int
+	conn          *websocket.Conn
+	hub           *Hub
+	writeChan     chan *Message
+	readChan      chan *Message
+	doneWriteChan chan bool
+	doneReadChan  chan bool
+	doneChan      chan bool
+}
+
+// NewClient ...
+func NewClient(conn *websocket.Conn, hub *Hub) *Client {
+	clientID++
+	return &Client{
+		id:            clientID,
+		conn:          conn,
+		hub:           hub,
+		writeChan:     make(chan *Message, chanBufferSize),
+		readChan:      make(chan *Message),
+		doneWriteChan: make(chan bool),
+		doneReadChan:  make(chan bool),
+		doneChan:      make(chan bool),
+	}
+}
+
+func (c *Client) Write(msg *Message) {
+	c.writeChan <- msg
+}
+
+func (c *Client) read() {
+	var msg Message
+	err := websocket.JSON.Receive(c.conn, &msg)
+	log.Println("Read msg:", msg)
+	if err != nil {
+		if err == io.EOF {
+			c.doneChan <- true
 			return
 		}
+		c.hub.Err(err)
+	} else {
+		c.readChan <- &msg
+	}
+}
 
-		var data Data
-		if error := json.Unmarshal(msg, &data); error != nil {
-			panic(err)
+// Listen listen read and write chan
+func (c *Client) Listen() {
+	go c.listenWrite()
+	go c.listenRead()
+	select {
+	case <-c.doneChan:
+		c.hub.Del(c)
+		c.doneWriteChan <- true
+		c.doneReadChan <- true
+		return
+	}
+}
+
+func (c *Client) listenWrite() {
+	for {
+		select {
+
+		case msg := <-c.writeChan:
+			websocket.JSON.Send(c.conn, msg)
+
+		case <-c.doneWriteChan:
+			return
 		}
+	}
+}
 
-		log.Println(msg)
-		log.Println(data)
+func (c *Client) listenRead() {
+	for {
+		go c.read()
+		select {
 
-		// Print the message to the console
-		fmt.Printf("%s sent: %s\n", conn.RemoteAddr(), string(msg))
-
-		// Write message back to browser
-		if err = conn.WriteMessage(msgType, []byte(fmt.Sprintf("%v", data.Sender))); err != nil {
+		case msg := <-c.readChan:
+			if msg.UserID != 0 {
+				c.hub.SendToOne(msg)
+				return
+			}
+			c.hub.SendAll(msg)
+		case <-c.doneReadChan:
 			return
 		}
 	}

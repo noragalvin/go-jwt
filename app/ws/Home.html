@@ -1,45 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
 </head>
+
 <body>
-    <!-- websockets.html -->
-    <input id="input" type="text" />
-    <button onclick="send()">Send</button>
-    <pre id="output"></pre>
-    <script>
-        var name = prompt("What's your name?");
-        var input = document.getElementById("input");
-        var output = document.getElementById("output");
-        var socket = new WebSocket("ws://localhost:8080/ws");
-        var sender = {
-          name: name,
-          message: ""
-        }
+  <!-- websockets.html -->
+  <input id="input" type="text" placeholder="your message" />
+  <input id="user_id" type="text" name="to_user_id" placeholder="another user">
+  <button onclick="send()">Send</button>
+  <pre id="output"></pre>
+  <script>
+    var name = prompt("What's your name?");
+    var input = document.getElementById("input");
+    var output = document.getElementById("output");
+    var user_id = document.getElementById("user_id")
+    var socket = new WebSocket("ws://localhost:8080/ws");
+    var sender = {
+      user_id: "",
+      name: name,
+      message: ""
+    }
 
-        socket.onopen = function () {
-            output.innerHTML += "Status: Connected\n";
-        };
+    socket.onopen = function() {
+      output.innerHTML += "Status: Connected\n";
+    };
 
-        socket.onmessage = function (e) {
-            console.log(e);
-            var data = JSON.parse(e.data);
-            output.innerHTML += data.name + ": " + data.message + "\n";
-        };
+    socket.onmessage = function(e) {
+      console.log(e);
+      var data = JSON.parse(e.data);
+      output.innerHTML += data.name + ": " + data.message + "\n";
+    };
 
-        socket.onclose = function () {
-            output.innerHTML += "<b>Connection closed.</b>";
-        };
+    socket.onclose = function() {
+      output.innerHTML += "<b>Connection closed.</b>";
+    };
 
-        function send() {
-          sender.message = input.value
-            socket.send(JSON.stringify(sender));
-            input.value = "";
-        }
-    </script>
+    function send() {
+      sender.message = input.value;
+      if(user_id.value) {
+        sender.user_id = parseInt(user_id.value);
+      } else {
+        sender.user_id = 0;
+      }
+      console.log(sender)
+      socket.send(JSON.stringify(sender));
+      input.value = "";
+    }
+  </script>
 </body>
+
 </html>

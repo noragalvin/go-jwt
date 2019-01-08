@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -10,22 +9,20 @@ import (
 	ws "github.com/noragalvin/go-server/app/ws"
 )
 
+// InitRoutes initialize routers
 func InitRoutes() *mux.Router {
 	router := mux.NewRouter()
 
-	// hub := ws.NewHub()
-	//
-	// go hub.Run()
+	hub := ws.NewHub()
+	go hub.Run()
+
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		log.Println("1")
 		http.ServeFile(w, r, "./app/ws/index.html")
 	})
 
-	router.HandleFunc("/chat/", middleware.Authentication(controllers.ChatRoom)).Methods("GET")
+	router.HandleFunc("/chat", controllers.ChatRoom).Methods("GET")
 
-	router.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		ws.ServeWs(w, r)
-	})
+	router.Handle("/ws", hub.Handler())
 
 	router.HandleFunc("/api/user/{id}", middleware.Authentication(controllers.UserGet)).Methods("GET")
 	router.HandleFunc("/api/login", controllers.UserLogin).Methods("POST")
