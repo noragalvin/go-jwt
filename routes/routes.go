@@ -14,6 +14,7 @@ func InitRoutes() *mux.Router {
 	router := mux.NewRouter()
 
 	hub := ws.NewHub()
+
 	go hub.Run()
 
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
